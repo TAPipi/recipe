@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Recipes">
+<meta name="theme-color" content="#1a1a1a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>My Recipe Book</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f5;
+    --bg3: #eeeeee;
+    --text: #1a1a1a;
+    --text2: #666666;
+    --text3: #999999;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --accent: #1a1a1a;
+    --accent-text: #ffffff;
+    --info-bg: #e8f0fe;
+    --info-text: #1a56db;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-top: env(safe-area-inset-top, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111111;
+      --bg2: #1c1c1c;
+      --bg3: #272727;
+      --text: #f0f0f0;
+      --text2: #aaaaaa;
+      --text3: #666666;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+      --accent: #f0f0f0;
+      --accent-text: #111111;
+      --info-bg: #1e2a4a;
+      --info-text: #7eb3ff;
+      --danger: #f87171;
+      --danger-bg: #2a1515;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+  /* ── views ── */
+  .view { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); }
+  .view.hidden { transform: translateX(100%); pointer-events: none; }
+
+  /* ── top bar ── */
+  .topbar { display: flex; align-items: center; gap: 8px; padding: 12px 14px; padding-top: calc(12px + var(--safe-top)); border-bottom: 0.5px solid var(--border); background: var(--bg); flex-shrink: 0; }
+  .topbar h1 { font-size: 17px; font-weight: 600; flex: 1; }
+  .topbar h2 { font-size: 17px; font-weight: 600; flex: 1; }
+  .icon-btn { width: 38px; height: 38px; border-radius: var(--radius-sm); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; font-size: 19px; line-height: 1; }
+  .icon-btn:active { background: var(--bg3); }
+  .icon-btn.accent { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+  /* ── label bar ── */
+  .label-bar { display: flex; gap: 6px; padding: 10px 14px; overflow-x: auto; border-bottom: 0.5px solid var(--border); flex-shrink: 0; scrollbar-width: none; }
+  .label-bar::-webkit-scrollbar { display: none; }
+  .chip { padding: 6px 16px; border-radius: 20px; border: 0.5px solid var(--border2); font-size: 13px; cursor: pointer; white-space: nowrap; background: var(--bg); color: var(--text2); }
+  .chip.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+  /* ── list ── */
+  .scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 12px 14px; padding-bottom: calc(80px + var(--safe-bottom)); }
+  .recipe-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px; cursor: pointer; display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+  .recipe-card:active { background: var(--bg2); }
+  .card-emoji { font-size: 34px; line-height: 1; flex-shrink: 0; }
+  .card-body { flex: 1; min-width: 0; }
+  .card-body h3 { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+  .card-meta { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+  .tags-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--info-bg); color: var(--info-text); }
+  .chevron { color: var(--text3); align-self: center; font-size: 18px; }
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text2); font-size: 14px; padding: 60px 20px; text-align: center; line-height: 1.6; }
+  .empty .big-icon { font-size: 52px; }
+
+  /* ── fab ── */
+  .fab { position: fixed; bottom: calc(24px + var(--safe-bottom)); left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--accent-text); border: none; border-radius: 28px; padding: 15px 32px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+  .fab:active { opacity: 0.85; transform: translateX(-50%) scale(0.97); }
+
+  /* ── form view ── */
+  .form-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px 14px; padding-bottom: calc(100px + var(--safe-bottom)); display: flex; flex-direction: column; gap: 16px; }
+  .form-footer { padding: 12px 14px; padding-bottom: calc(12px + var(--safe-bottom)); border-top: 0.5px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; background: var(--bg); }
+  .btn { flex: 1; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); }
+  .btn:active { opacity: 0.8; }
+  .btn.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .btn.danger { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+
+  /* ── fields ── */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+  .field input, .field textarea, .field select {
+    width: 100%; padding: 12px 14px; font-size: 16px; background: var(--bg2);
+    border: 0.5px solid var(--border); border-radius: var(--radius-sm); color: var(--text);
+    font-family: inherit; -webkit-appearance: none; appearance: none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .field textarea { resize: none; min-height: 90px; line-height: 1.5; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── upload ── */
+  .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 24px 16px; text-align: center; cursor: pointer; color: var(--text2); font-size: 14px; line-height: 1.6; background: var(--bg2); }
+  .upload-zone:active { background: var(--bg3); }
+  .upload-icon { font-size: 36px; display: block; margin-bottom: 8px; }
+  .progress-bar { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin-top: 10px; }
+  .progress-inner { height: 100%; background: var(--info-text); animation: prog 1.5s infinite; border-radius: 2px; }
+  @keyframes prog { 0%{width:0;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0;margin-left:100%} }
+
+  /* ── emoji row ── */
+  .emoji-row { display: flex; align-items: center; gap: 12px; }
+  .emoji-display { font-size: 40px; line-height: 1; cursor: pointer; padding: 8px; border-radius: var(--radius-sm); background: var(--bg2); border: 0.5px solid var(--border); }
+  .emoji-grid-wrap { position: relative; }
+  .emoji-grid { display: none; position: absolute; top: 100%; left: 0; z-index: 30; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 10px; display: none; grid-template-columns: repeat(8, 1fr); gap: 2px; width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  .emoji-grid.open { display: grid; }
+  .emoji-grid span { font-size: 24px; cursor: pointer; padding: 5px; border-radius: 6px; text-align: center; display: block; }
+  .emoji-grid span:active { background: var(--bg2); }
+
+  /* ── tag chips ── */
+  .tag-input-row { display: flex; gap: 8px; }
+  .tag-input-row input { flex: 1; }
+  .tag-chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag-chip-rm { font-size: 12px; padding: 5px 12px; border-radius: 10px; background: var(--info-bg); color: var(--info-text); border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; font-family: inherit; }
+
+  /* ── cook view ── */
+  .cook-info-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cook-badge { font-size: 14px; padding: 7px 16px; border-radius: 20px; border: 0.5px solid var(--border2); color: var(--text2); background: var(--bg2); }
+  .cook-section-title { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin: 16px 0 8px; }
+  .cook-item { display: flex; align-items: flex-start; gap: 12px; padding: 13px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; font-size: 16px; line-height: 1.5; color: var(--text); }
+  .cook-item.done { color: var(--text3); text-decoration: line-through; }
+  .cook-item.done .cook-num, .cook-item.done .cook-dot { opacity: 0.4; }
+  .cook-num { font-size: 13px; color: var(--text3); min-width: 22px; margin-top: 2px; flex-shrink: 0; }
+  .cook-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); margin-top: 8px; flex-shrink: 0; }
+  .cook-notes { background: var(--bg2); border-radius: var(--radius-sm); padding: 14px; font-size: 14px; color: var(--text2); line-height: 1.6; margin-top: 16px; }
+  .cook-notes strong { display: block; margin-bottom: 4px; color: var(--text); font-weight: 600; }
+  .wake-bar { padding: 10px 14px; padding-bottom: calc(10px + var(--safe-bottom)); text-align: center; font-size: 12px; color: var(--text3); border-top: 0.5px solid var(--border); flex-shrink: 0; background: var(--bg); }
+
+  /* ── settings view ── */
+  .settings-section { padding: 16px 14px 6px; font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; }
+  .settings-row { display: flex; align-items: center; gap: 12px; padding: 14px; border-bottom: 0.5px solid var(--border); background: var(--bg); cursor: pointer; }
+  .settings-row:active { background: var(--bg2); }
+  .settings-row-label { flex: 1; font-size: 15px; }
+  .settings-row-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .settings-row-icon { font-size: 20px; width: 30px; text-align: center; }
+  .api-key-display { font-size: 13px; color: var(--text2); font-family: monospace; }
+  .banner { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; }
+  .banner.info { background: var(--info-bg); color: var(--info-text); }
+  .banner.success { background: #d1fae5; color: #065f46; }
+  @media (prefers-color-scheme: dark) { .banner.success { background: #064e3b; color: #6ee7b7; } }
+
+  /* ── label manager ── */
+  .label-item { display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 0.5px solid var(--border); }
+  .label-item span { flex: 1; font-size: 15px; }
+  .search-bar { padding: 10px 14px; border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+  .search-bar input { width: 100%; padding: 10px 14px; font-size: 16px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: inherit; -webkit-appearance: none; }
+  .search-bar input:focus { outline: none; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ HOME VIEW -->
+<div class="view" id="view-home">
+  <div class="topbar">
+    <h1>📖 Recipes</h1>
+    <button class="icon-btn" id="btn-labels" aria-label="Manage labels">🏷️</button>
+    <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙️</button>
+  </div>
+  <div class="search-bar">
+    <input type="search" id="search-input" placeholder="Search recipes, ingredients, tags…">
+  </div>
+  <div class="label-bar" id="label-bar"></div>
+  <div class="scroll-area" id="recipe-list"></div>
+  <button class="fab" id="fab-btn">＋ Add recipe</button>
+</div>
+
+<!-- ═══════════════════════════════════════════ FORM VIEW -->
+<div class="view hidden" id="view-form">
+  <div class="topbar">
+    <button class="icon-btn" id="form-back-btn" aria-label="Back">←</button>
+    <h2 id="form-title">New recipe</h2>
+    <button class="icon-btn" id="form-delete-btn" aria-label="Delete" style="display:none;">🗑️</button>
+  </div>
+  <div class="form-scroll" id="form-scroll">
+
+    <!-- upload -->
+    <div class="upload-zone" id="upload-zone">
+      <span class="upload-icon">📷</span>
+      Tap to scan an Instagram screenshot<br>
+      <span style="font-size:12px;color:var(--text3);">Gemini AI will read it for you</span>
+      <input type="file" id="file-input" accept="image/*" style="display:none;">
+    </div>
+    <div id="loading-wrap" style="display:none;">
+      <p style="font-size:13px;color:var(--text2);">Reading your screenshot…</p>
+      <div class="progress-bar"><div class="progress-inner"></div></div>
+    </div>
+    <div id="ocr-result" style="display:none;" class="banner info">
+      ✓ Recipe read — fields filled in below. Edit anything you like.
+    </div>
+    <div id="no-api-warn" style="display:none;" class="banner info">
+      ⚠️ No Gemini API key set — <span style="text-decoration:underline;cursor:pointer;" id="goto-settings-link">add one in Settings</span> to scan screenshots. You can still add recipes manually.
+    </div>
+
+    <!-- emoji + name -->
+    <div class="field">
+      <label>Emoji</label>
+      <div class="emoji-row">
+        <div class="emoji-grid-wrap">
+          <div class="emoji-display" id="emoji-display" role="button" tabindex="0" aria-label="Choose emoji">🍽️</div>
+          <div class="emoji-grid" id="emoji-grid"></div>
+        </div>
+        <div style="flex:1;" class="field" style="gap:0;">
+          <input type="text" id="f-name" placeholder="Recipe name" style="font-size:17px;font-weight:600;">
+        </div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field"><label>Serves</label><input type="text" id="f-serves" placeholder="e.g. 4 people"></div>
+      <div class="field"><label>Time</label><input type="text" id="f-time" placeholder="e.g. 30 min"></div>
+    </div>
+
+    <div class="field"><label>Ingredients</label><textarea id="f-ingredients" placeholder="One ingredient per line…" rows="5"></textarea></div>
+    <div class="field"><label>Method</label><textarea id="f-method" placeholder="Steps…" rows="6"></textarea></div>
+    <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Tips, substitutions, source…" rows="3"></textarea></div>
+
+    <div class="field" id="label-field-wrap">
+      <label>Label</label>
+      <select id="f-label"><option value="">— no label —</option></select>
+    </div>
+
+    <div class="field">
+      <label>Tags</label>
+      <div class="tag-input-row">
+        <input type="text" id="tag-input" placeholder="e.g. gluten-free, quick">
+        <button class="icon-btn accent" id="add-tag-btn" aria-label="Add tag">＋</button>
+      </div>
+      <div class="tag-chips-row" id="tag-chips"></div>
+    </div>
+  </div>
+  <div class="form-footer">
+    <button class="btn primary" id="save-btn">Save recipe</button>
+    <button class="btn" id="cook-from-form-btn" style="display:none;max-width:100px;">👨‍🍳 Cook</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ COOK VIEW -->
+<div class="view hidden" id="view-cook">
+  <div class="topbar">
+    <button class="icon-btn" id="cook-back-btn" aria-label="Exit cooking mode">✕</button>
+    <h2 id="cook-title"></h2>
+    <span id="cook-emoji" style="font-size:26px;"></span>
+  </div>
+  <div class="scroll-area" id="cook-body" style="padding-bottom:calc(20px + var(--safe-bottom));"></div>
+  <div class="wake-bar" id="wake-bar">Screen will stay on while cooking ✓</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ LABELS VIEW -->
+<div class="view hidden" id="view-labels">
+  <div class="topbar">
+    <button class="icon-btn" id="labels-back-btn" aria-label="Back">←</button>
+    <h2>Labels</h2>
+  </div>
+  <div class="form-scroll" id="labels-scroll" style="padding-bottom:20px;">
+    <div id="labels-list"></div>
+    <div class="field" style="margin-top:8px;">
+      <label>New label</label>
+      <div class="tag-input-row">
+        <input type="text" id="new-label-input" placeholder="e.g. Weeknight, Batch cook…">
+        <button class="icon-btn accent" id="add-label-btn" aria-label="Add label">＋</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ SETTINGS VIEW -->
+<div class="view hidden" id="view-settings">
+  <div class="topbar">
+    <button class="icon-btn" id="settings-back-btn" aria-label="Back">←</button>
+    <h2>Settings</h2>
+  </div>
+  <div class="scroll-area" style="padding-bottom:20px;">
+    <p class="settings-section">Gemini API (for scanning screenshots)</p>
+    <div style="padding:14px;">
+      <div class="banner info" style="margin-bottom:14px;font-size:13px;line-height:1.6;">
+        Get a <strong>free</strong> Gemini API key at <strong>aistudio.google.com</strong> — sign in with Google, tap "Get API key". No credit card needed.
+      </div>
+      <div class="field">
+        <label>API Key</label>
+        <input type="password" id="api-key-input" placeholder="Paste your Gemini API key here…" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn primary" id="save-api-btn">Save key</button>
+        <button class="btn" id="clear-api-btn">Clear</button>
+      </div>
+      <p id="api-status" style="font-size:13px;color:var(--text2);margin-top:10px;"></p>
+    </div>
+
+    <p class="settings-section" style="margin-top:8px;">Data</p>
+    <div style="padding:14px;">
+      <button class="btn danger" id="export-btn" style="margin-bottom:10px;">📤 Export all recipes (JSON)</button>
+      <button class="btn danger" id="clear-data-btn">🗑️ Clear all data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── state ───────────────────────────────────────────────
+const S = {
+  recipes: [],
+  labels: [],
+  activeLabel: 'All',
+  editId: null,
+  curTags: [],
+  wakeLock: null
+};
+
+const EMOJIS = '🍝🍜🍲🥗🍰🍪🥘🫕🍱🥩🍗🐟🥞🧇🌮🫔🍕🍔🌯🥙🍣🍛🥐🫓🍮🎂🍩🧁🍦🍫🫖🥤🥑🧆🥜🫘🍆🌶️🫑🥦🧀🥚🍳🥓🌽'.split('');
+
+function load() {
+  try { const d = JSON.parse(localStorage.getItem('recipebook') || '{}'); S.recipes = d.recipes || []; S.labels = d.labels || []; } catch(e) {}
+}
+function save() {
+  localStorage.setItem('recipebook', JSON.stringify({ recipes: S.recipes, labels: S.labels }));
+}
+function getApiKey() { return localStorage.getItem('gemini-api-key') || ''; }
+
+// ─── navigation ───────────────────────────────────────────
+const views = ['home','form','cook','labels','settings'];
+function showView(name) {
+  views.forEach(v => {
+    const el = document.getElementById('view-' + v);
+    el.classList.toggle('hidden', v !== name);
+  });
+  window.scrollTo(0, 0);
+}
+
+// ─── home ─────────────────────────────────────────────────
+function renderHome() {
+  renderLabelBar();
+  renderList();
+}
+
+function renderLabelBar() {
+  const bar = document.getElementById('label-bar');
+  const all = [{ id: 'All', name: 'All' }, ...S.labels];
+  bar.innerHTML = all.map(l =>
+    `<div class="chip${S.activeLabel === l.id ? ' active' : ''}" data-id="${l.id}">${l.name}</div>`
+  ).join('');
+  bar.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+    S.activeLabel = c.dataset.id; renderLabelBar(); renderList();
+  }));
+  // hide bar if no labels
+  bar.style.display = S.labels.length ? 'flex' : 'none';
+}
+
+function renderList() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const recipes = S.recipes.filter(r => {
+    const lOk = S.activeLabel === 'All' || r.label === S.activeLabel;
+    const sOk = !q || r.name.toLowerCase().includes(q)
+      || (r.ingredients || '').toLowerCase().includes(q)
+      || (r.tags || []).some(t => t.toLowerCase().includes(q));
+    return lOk && sOk;
+  });
+  const el = document.getElementById('recipe-list');
+  if (!recipes.length) {
+    el.innerHTML = `<div class="empty"><div class="big-icon">${S.recipes.length ? '🔍' : '📖'}</div><p>${S.recipes.length ? 'No recipes match.' : 'No recipes yet!\nTap + to add your first one.'}</p></div>`;
+    return;
+  }
+  el.innerHTML = recipes.map(r => {
+    const label = S.labels.find(l => l.id === r.label);
+    return `<div class="recipe-card" data-id="${r.id}">
+      <div class="card-emoji">${r.emoji || '🍽️'}</div>
+      <div class="card-body">
+        <h3>${esc(r.name || 'Untitled')}</h3>
+        <div class="card-meta">${[r.time, r.serves ? r.serves + ' servings' : '', label ? '#' + label.name : ''].filter(Boolean).join(' · ')}</div>
+        <div class="tags-row">${(r.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+      </div>
+      <span class="chevron">›</span>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.recipe-card').forEach(c => c.addEventListener('click', () => openEdit(c.dataset.id)));
+}
+
+function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+document.getElementById('search-input').addEventListener('input', renderList);
+document.getElementById('btn-labels').addEventListener('click', () => { renderLabelsView(); showView('labels'); });
+document.getElementById('btn-settings').addEventListener('click', () => showView('settings'));
+document.getElementById('fab-btn').addEventListener('click', openNew);
+
+// ─── emoji picker ─────────────────────────────────────────
+const emojiGrid = document.getElementById('emoji-grid');
+emojiGrid.innerHTML = EMOJIS.map(e => `<span>${e}</span>`).join('');
+const emojiDisplay = document.getElementById('emoji-display');
+emojiDisplay.addEventListener('click', e => { e.stopPropagation(); emojiGrid.classList.toggle('open'); });
+emojiGrid.querySelectorAll('span').forEach(s => s.addEventListener('click', () => { emojiDisplay.textContent = s.textContent; emojiGrid.classList.remove('open'); }));
+document.addEventListener('click', () => emojiGrid.classList.remove('open'));
+
+// ─── form ─────────────────────────────────────────────────
+function openNew() {
+  S.editId = null; S.curTags = [];
+  document.getElementById('form-title').textContent = 'New recipe';
+  document.getElementById('form-delete-btn').style.display = 'none';
+  document.getElementById('cook-from-form-btn').style.display = 'none';
+  clearForm();
+  populateLabelSelect();
+  checkApiKeyWarning();
+  showView('form');
+}
+
+function openEdit(id) {
+  const r = S.recipes.find(x => x.id === id); if (!r) return;
+  S.editId = id; S.curTags = [...(r.tags || [])];
+  document.getElementById('form-title').textContent = 'Edit recipe';
+  document.getElementById('form-delete-btn').style.display = 'flex';
+  document.getElementById('cook-from-form-btn').style.display = 'flex';
+  populateLabelSelect();
+  emojiDisplay.textContent = r.emoji || '🍽️';
+  document.getElementById('f-name').value = r.name || '';
+  document.getElementById('f-serves').value = r.serves || '';
+  document.getElementById('f-time').value = r.time || '';
+  document.getElementById('f-ingredients').value = r.ingredients || '';
+  document.getElementById('f-method').value = r.method || '';
+  document.getElementById('f-notes').value = r.notes || '';
+  if (r.label) document.getElementById('f-label').value = r.label;
+  document.getElementById('ocr-result').style.display = 'none';
+  document.getElementById('loading-wrap').style.display = 'none';
+  document.getElementById('no-api-warn').style.display = 'none';
+  renderTagChips();
+  showView('form');
+  document.getElementById('form-scroll').scrollTop = 0;
+}
+
+function clearForm() {
+  ['f-name','f-serves','f-time','f-ingredients','f-method','f-notes'].forEach(id => document.getElementById(id).value = '');
+  emojiDisplay.textContent = '🍽️';
+  S.curTags = []; renderTagChips();
+  document.getElementById('ocr-result').style.display = 'none';
+  document.getElementById('loading-wrap').style.display = 'none';
+}
+
+function checkApiKeyWarning() {
+  const warn = document.getElementById('no-api-warn');
+  warn.style.display = getApiKey() ? 'none' : 'block';
+}
+
+function populateLabelSelect() {
+  const sel = document.getElementById('f-label');
+  sel.innerHTML = '<option value="">— no label —</option>' +
+    S.labels.map(l => `<option value="${l.id}">${esc(l.name)}</option>`).join('');
+}
+
+function renderTagChips() {
+  const el = document.getElementById('tag-chips');
+  el.innerHTML = S.curTags.map((t, i) =>
+    `<button class="tag-chip-rm" data-i="${i}">${esc(t)} ✕</button>`
+  ).join('');
+  el.querySelectorAll('.tag-chip-rm').forEach(b => b.addEventListener('click', () => {
+    S.curTags.splice(+b.dataset.i, 1); renderTagChips();
+  }));
+}
+
+document.getElementById('add-tag-btn').addEventListener('click', () => {
+  const v = document.getElementById('tag-input').value.trim();
+  if (v && !S.curTags.includes(v)) { S.curTags.push(v); renderTagChips(); document.getElementById('tag-input').value = ''; }
+});
+document.getElementById('tag-input').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('add-tag-btn').click(); } });
+
+document.getElementById('form-back-btn').addEventListener('click', () => showView('home'));
+document.getElementById('form-delete-btn').addEventListener('click', () => {
+  if (!S.editId) return;
+  if (!confirm('Delete this recipe?')) return;
+  S.recipes = S.recipes.filter(r => r.id !== S.editId);
+  save(); renderHome(); showView('home');
+});
+
+document.getElementById('save-btn').addEventListener('click', () => {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('f-name').focus(); return; }
+  const recipe = {
+    id: S.editId || Date.now().toString(),
+    emoji: emojiDisplay.textContent,
+    name,
+    serves: document.getElementById('f-serves').value.trim(),
+    time: document.getElementById('f-time').value.trim(),
+    ingredients: document.getElementById('f-ingredients').value.trim(),
+    method: document.getElementById('f-method').value.trim(),
+    notes: document.getElementById('f-notes').value.trim(),
+    label: document.getElementById('f-label').value || null,
+    tags: [...S.curTags]
+  };
+  if (S.editId) { const i = S.recipes.findIndex(r => r.id === S.editId); S.recipes[i] = recipe; }
+  else S.recipes.unshift(recipe);
+  save(); renderHome(); showView('home');
+});
+
+document.getElementById('cook-from-form-btn').addEventListener('click', () => {
+  const id = S.editId; if (!id) return;
+  const r = S.recipes.find(x => x.id === id); if (!r) return;
+  openCookMode(r);
+});
+
+document.getElementById('goto-settings-link').addEventListener('click', () => showView('settings'));
+
+// ─── upload / OCR ─────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const fileInput = document.getElementById('file-input');
+uploadZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); fileInput.value = ''; });
+
+async function handleFile(file) {
+  const key = getApiKey();
+  if (!key) { checkApiKeyWarning(); return; }
+  document.getElementById('loading-wrap').style.display = 'block';
+  document.getElementById('ocr-result').style.display = 'none';
+  document.getElementById('no-api-warn').style.display = 'none';
+  document.getElementById('form-scroll').scrollTop = 0;
+
+  const b64 = await new Promise((res, rej) => {
+    const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file);
+  });
+
+  try {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { inline_data: { mime_type: file.type || 'image/jpeg', data: b64 } },
+          { text: 'Extract the recipe from this screenshot. Return ONLY a valid JSON object with these exact keys: name (string), emoji (single most fitting food emoji), serves (string), time (string), ingredients (multiline string, one ingredient per line), method (multiline string, one step per line), notes (string with any tips or source info). Use empty string for any field not found. No markdown formatting, no code blocks, just the raw JSON.' }
+        ]}]
+      })
+    });
+    const data = await resp.json();
+    document.getElementById('loading-wrap').style.display = 'none';
+    if (data.error) throw new Error(data.error.message);
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    if (parsed.emoji) emojiDisplay.textContent = parsed.emoji;
+    if (parsed.name) document.getElementById('f-name').value = parsed.name;
+    if (parsed.serves) document.getElementById('f-serves').value = parsed.serves;
+    if (parsed.time) document.getElementById('f-time').value = parsed.time;
+    if (parsed.ingredients) document.getElementById('f-ingredients').value = parsed.ingredients;
+    if (parsed.method) document.getElementById('f-method').value = parsed.method;
+    if (parsed.notes) document.getElementById('f-notes').value = parsed.notes;
+    document.getElementById('ocr-result').style.display = 'block';
+  } catch(e) {
+    document.getElementById('loading-wrap').style.display = 'none';
+    alert('Could not read screenshot: ' + e.message + '\n\nCheck your API key in Settings, or fill in manually.');
+  }
+}
+
+// ─── cook mode ────────────────────────────────────────────
+function openCookMode(r) {
+  document.getElementById('cook-title').textContent = r.name;
+  document.getElementById('cook-emoji').textContent = r.emoji || '🍽️';
+  const body = document.getElementById('cook-body');
+  const ings = (r.ingredients || '').split('\n').filter(Boolean);
+  const steps = (r.method || '').split('\n').filter(Boolean);
+  let html = '';
+  if (r.time || r.serves) {
+    html += `<div class="cook-info-row">${r.time ? `<span class="cook-badge">⏱ ${esc(r.time)}</span>` : ''}${r.serves ? `<span class="cook-badge">👥 ${esc(r.serves)}</span>` : ''}</div>`;
+  }
+  if (ings.length) {
+    html += `<div class="cook-section-title">Ingredients</div>`;
+    html += ings.map((ing, i) => `<div class="cook-item" data-k="i${i}"><span class="cook-dot"></span>${esc(ing)}</div>`).join('');
+  }
+  if (steps.length) {
+    html += `<div class="cook-section-title">Method</div>`;
+    html += steps.map((s, i) => `<div class="cook-item" data-k="s${i}"><span class="cook-num">${i+1}</span>${esc(s)}</div>`).join('');
+  }
+  if (r.notes) {
+    html += `<div class="cook-notes"><strong>Notes</strong>${esc(r.notes)}</div>`;
+  }
+  body.innerHTML = html;
+  body.querySelectorAll('.cook-item').forEach(el => el.addEventListener('click', () => el.classList.toggle('done')));
+  acquireWakeLock();
+  showView('cook');
+}
+
+document.getElementById('cook-back-btn').addEventListener('click', () => {
+  releaseWakeLock();
+  showView(S.editId ? 'form' : 'home');
+});
+
+async function acquireWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      S.wakeLock = await navigator.wakeLock.request('screen');
+      document.getElementById('wake-bar').textContent = 'Screen will stay on while cooking ✓';
+    } catch(e) {
+      document.getElementById('wake-bar').textContent = 'Tip: disable auto-lock in your phone settings while cooking';
+    }
+  } else {
+    document.getElementById('wake-bar').textContent = 'Tip: disable auto-lock in your phone settings while cooking';
+  }
+}
+async function releaseWakeLock() {
+  if (S.wakeLock) { try { await S.wakeLock.release(); } catch(e) {} S.wakeLock = null; }
+}
+document.addEventListener('visibilitychange', async () => {
+  if (S.wakeLock && document.visibilityState === 'visible') await acquireWakeLock();
+});
+
+// ─── labels ───────────────────────────────────────────────
+document.getElementById('labels-back-btn').addEventListener('click', () => { renderHome(); showView('home'); });
+
+function renderLabelsView() {
+  const el = document.getElementById('labels-list');
+  if (!S.labels.length) {
+    el.innerHTML = '<p style="font-size:14px;color:var(--text2);padding:8px 0 16px;">No labels yet — add one below.</p>'; return;
+  }
+  el.innerHTML = S.labels.map(l =>
+    `<div class="label-item" data-id="${l.id}"><span>${esc(l.name)}</span><button class="icon-btn" data-del="${l.id}" aria-label="Delete ${esc(l.name)}" style="border-color:var(--danger);color:var(--danger);">✕</button></div>`
+  ).join('');
+  el.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => {
+    const id = b.dataset.del;
+    S.labels = S.labels.filter(l => l.id !== id);
+    S.recipes.forEach(r => { if (r.label === id) r.label = null; });
+    if (S.activeLabel === id) S.activeLabel = 'All';
+    save(); renderLabelsView();
+  }));
+}
+
+document.getElementById('add-label-btn').addEventListener('click', () => {
+  const v = document.getElementById('new-label-input').value.trim();
+  if (v && !S.labels.find(l => l.name === v)) {
+    S.labels.push({ id: Date.now().toString(), name: v });
+    save(); renderLabelsView();
+    document.getElementById('new-label-input').value = '';
+  }
+});
+document.getElementById('new-label-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('add-label-btn').click(); });
+
+// ─── settings ─────────────────────────────────────────────
+document.getElementById('settings-back-btn').addEventListener('click', () => showView('home'));
+
+document.getElementById('save-api-btn').addEventListener('click', () => {
+  const v = document.getElementById('api-key-input').value.trim();
+  if (!v) return;
+  localStorage.setItem('gemini-api-key', v);
+  document.getElementById('api-status').textContent = '✓ Key saved';
+  document.getElementById('api-key-input').value = '';
+});
+document.getElementById('clear-api-btn').addEventListener('click', () => {
+  localStorage.removeItem('gemini-api-key');
+  document.getElementById('api-key-input').value = '';
+  document.getElementById('api-status').textContent = 'Key cleared';
+});
+
+document.getElementById('export-btn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ recipes: S.recipes, labels: S.labels }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'my-recipes.json'; a.click();
+});
+document.getElementById('clear-data-btn').addEventListener('click', () => {
+  if (confirm('This will delete all recipes and labels. Are you sure?')) {
+    S.recipes = []; S.labels = []; S.activeLabel = 'All';
+    save(); renderHome(); showView('home');
+  }
+});
+
+// show existing key hint
+if (getApiKey()) {
+  const k = getApiKey();
+  document.getElementById('api-status').textContent = `Key saved (ends in …${k.slice(-4)})`;
+}
+
+// ─── service worker ───────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+// ─── init ─────────────────────────────────────────────────
+load();
+renderHome();
+</script>
+</body>
+</html>
